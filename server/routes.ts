@@ -45,37 +45,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const baseCurrency = (req.query.from as string)?.toUpperCase() || "USD";
       const targetCurrency = (req.query.to as string)?.toUpperCase() || "EUR";
       
-      // Hardcoded exchange rates for specific currency pairs
+      // Updated exchange rates as of April 2023
       const exchangeRates: Record<string, Record<string, number>> = {
         "USD": {
-          "EUR": 0.92,
-          "INR": 83.72,
-          "DKK": 6.87,
-          "AED": 3.67
+          "EUR": 0.932,
+          "INR": 83.12,
+          "DKK": 6.946,
+          "AED": 3.673
         },
         "EUR": {
-          "USD": 1.09,
-          "INR": 91.00,
-          "DKK": 7.47,
-          "AED": 4.00
+          "USD": 1.073,
+          "INR": 89.179,
+          "DKK": 7.455,
+          "AED": 3.942
         },
         "INR": {
-          "USD": 0.012,
-          "EUR": 0.011,
-          "DKK": 0.082,
-          "AED": 0.044
+          "USD": 0.01203,
+          "EUR": 0.01121,
+          "DKK": 0.0836,
+          "AED": 0.04419
         },
         "DKK": {
-          "USD": 0.146,
-          "EUR": 0.134,
-          "INR": 12.19,
-          "AED": 0.535
+          "USD": 0.1439,
+          "EUR": 0.1341,
+          "INR": 11.965,
+          "AED": 0.5285
         },
         "AED": {
-          "USD": 0.272,
-          "EUR": 0.25,
-          "INR": 22.81,
-          "DKK": 1.87
+          "USD": 0.2722,
+          "EUR": 0.2537,
+          "INR": 22.631,
+          "DKK": 1.891
         }
       };
       
@@ -145,37 +145,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const targetCurrency = (req.query.to as string)?.toUpperCase() || "EUR";
       const days = parseInt(req.query.days as string) || 30;
       
-      // Hardcoded exchange rates for specific currency pairs
+      // Updated exchange rates as of April 2023
       const baseRates: Record<string, Record<string, number>> = {
         "USD": {
-          "EUR": 0.92,
-          "INR": 83.72,
-          "DKK": 6.87,
-          "AED": 3.67
+          "EUR": 0.932,
+          "INR": 83.12,
+          "DKK": 6.946,
+          "AED": 3.673
         },
         "EUR": {
-          "USD": 1.09,
-          "INR": 91.00,
-          "DKK": 7.47,
-          "AED": 4.00
+          "USD": 1.073,
+          "INR": 89.179,
+          "DKK": 7.455,
+          "AED": 3.942
         },
         "INR": {
-          "USD": 0.012,
-          "EUR": 0.011,
-          "DKK": 0.082,
-          "AED": 0.044
+          "USD": 0.01203,
+          "EUR": 0.01121,
+          "DKK": 0.0836,
+          "AED": 0.04419
         },
         "DKK": {
-          "USD": 0.146,
-          "EUR": 0.134,
-          "INR": 12.19,
-          "AED": 0.535
+          "USD": 0.1439,
+          "EUR": 0.1341,
+          "INR": 11.965,
+          "AED": 0.5285
         },
         "AED": {
-          "USD": 0.272,
-          "EUR": 0.25,
-          "INR": 22.81,
-          "DKK": 1.87
+          "USD": 0.2722,
+          "EUR": 0.2537,
+          "INR": 22.631,
+          "DKK": 1.891
         }
       };
       
@@ -244,37 +244,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const targetCurrency = (req.query.to as string)?.toUpperCase() || "EUR";
       const days = parseInt(req.query.days as string) || 30;
       
-      // Hardcoded exchange rates for specific currency pairs
+      // Updated exchange rates as of April 2023
       const baseRates: Record<string, Record<string, number>> = {
         "USD": {
-          "EUR": 0.92,
-          "INR": 83.72,
-          "DKK": 6.87,
-          "AED": 3.67
+          "EUR": 0.932,
+          "INR": 83.12,
+          "DKK": 6.946,
+          "AED": 3.673
         },
         "EUR": {
-          "USD": 1.09,
-          "INR": 91.00,
-          "DKK": 7.47,
-          "AED": 4.00
+          "USD": 1.073,
+          "INR": 89.179,
+          "DKK": 7.455,
+          "AED": 3.942
         },
         "INR": {
-          "USD": 0.012,
-          "EUR": 0.011,
-          "DKK": 0.082,
-          "AED": 0.044
+          "USD": 0.01203,
+          "EUR": 0.01121,
+          "DKK": 0.0836,
+          "AED": 0.04419
         },
         "DKK": {
-          "USD": 0.146,
-          "EUR": 0.134,
-          "INR": 12.19,
-          "AED": 0.535
+          "USD": 0.1439,
+          "EUR": 0.1341,
+          "INR": 11.965,
+          "AED": 0.5285
         },
         "AED": {
-          "USD": 0.272,
-          "EUR": 0.25,
-          "INR": 22.81,
-          "DKK": 1.87
+          "USD": 0.2722,
+          "EUR": 0.2537,
+          "INR": 22.631,
+          "DKK": 1.891
         }
       };
       

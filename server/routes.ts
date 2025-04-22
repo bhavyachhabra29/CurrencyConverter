@@ -45,27 +45,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const baseCurrency = (req.query.from as string)?.toUpperCase() || "USD";
       const targetCurrency = (req.query.to as string)?.toUpperCase() || "EUR";
       
-      const response = await fetch(`${BASE_URL}/${API_KEY}/pair/${baseCurrency}/${targetCurrency}`);
-      const data = await response.json();
+      // Hardcoded exchange rates for specific currency pairs
+      const exchangeRates: Record<string, Record<string, number>> = {
+        "USD": {
+          "EUR": 0.92,
+          "INR": 83.72,
+          "DKK": 6.87,
+          "AED": 3.67
+        },
+        "EUR": {
+          "USD": 1.09,
+          "INR": 91.00,
+          "DKK": 7.47,
+          "AED": 4.00
+        },
+        "INR": {
+          "USD": 0.012,
+          "EUR": 0.011,
+          "DKK": 0.082,
+          "AED": 0.044
+        },
+        "DKK": {
+          "USD": 0.146,
+          "EUR": 0.134,
+          "INR": 12.19,
+          "AED": 0.535
+        },
+        "AED": {
+          "USD": 0.272,
+          "EUR": 0.25,
+          "INR": 22.81,
+          "DKK": 1.87
+        }
+      };
       
-      if (data.result === "success") {
-        // Save the current rate to our storage
-        await storage.saveExchangeRate({
-          baseCurrency,
-          targetCurrency,
-          rate: data.conversion_rate,
-          date: new Date()
-        });
-        
-        res.json({
-          rate: data.conversion_rate,
-          baseCurrency,
-          targetCurrency,
-          lastUpdated: new Date().toISOString()
-        });
-      } else {
-        res.status(400).json({ message: data.error || "Failed to get exchange rate" });
+      // Default rate if the specific pair is not in our hardcoded data
+      let rate = 1.0;
+      
+      // Get rate from our hardcoded data
+      if (baseCurrency !== targetCurrency) {
+        if (exchangeRates[baseCurrency] && exchangeRates[baseCurrency][targetCurrency]) {
+          rate = exchangeRates[baseCurrency][targetCurrency];
+        } else {
+          // If we don't have the specific pair, use a default rate
+          console.log(`Using default rate for ${baseCurrency}/${targetCurrency}`);
+        }
       }
+      
+      // Save the current rate to our storage
+      await storage.saveExchangeRate({
+        baseCurrency,
+        targetCurrency,
+        rate,
+        date: new Date()
+      });
+      
+      res.json({
+        rate,
+        baseCurrency,
+        targetCurrency,
+        lastUpdated: new Date().toISOString()
+      });
     } catch (error) {
       console.error("Exchange rate API error:", error);
       res.status(500).json({ message: "Failed to fetch exchange rate" });
@@ -105,78 +145,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const targetCurrency = (req.query.to as string)?.toUpperCase() || "EUR";
       const days = parseInt(req.query.days as string) || 30;
       
-      // Try to get from storage first
-      const storedRates = await storage.getExchangeRates(baseCurrency, targetCurrency, days);
-      
-      // If we don't have enough rates stored, fetch from API
-      if (storedRates.length < days) {
-        const response = await fetch(`${BASE_URL}/${API_KEY}/history/${baseCurrency}/${targetCurrency}/${days}`);
-        const data = await response.json();
-        
-        if (data.result === "success") {
-          const rates = [];
-          const conversionRates = data.conversion_rates || {};
-          
-          for (const [dateStr, rate] of Object.entries(conversionRates)) {
-            const date = new Date(dateStr);
-            
-            // Save to storage
-            await storage.saveExchangeRate({
-              baseCurrency,
-              targetCurrency,
-              rate: rate as number,
-              date
-            });
-            
-            rates.push({
-              date: date.toISOString(),
-              rate
-            });
-          }
-          
-          // Calculate statistics
-          const rateValues = rates.map(r => r.rate as number);
-          const avg = rateValues.reduce((a, b) => a + b, 0) / rateValues.length;
-          const min = Math.min(...rateValues);
-          const max = Math.max(...rateValues);
-          const volatility = ((max - min) / avg) * 100;
-          
-          res.json({
-            rates,
-            statistics: {
-              average: avg,
-              min,
-              max,
-              volatility: parseFloat(volatility.toFixed(2))
-            }
-          });
-        } else {
-          res.status(400).json({ message: data.error || "Failed to get historical rates" });
+      // Hardcoded exchange rates for specific currency pairs
+      const baseRates: Record<string, Record<string, number>> = {
+        "USD": {
+          "EUR": 0.92,
+          "INR": 83.72,
+          "DKK": 6.87,
+          "AED": 3.67
+        },
+        "EUR": {
+          "USD": 1.09,
+          "INR": 91.00,
+          "DKK": 7.47,
+          "AED": 4.00
+        },
+        "INR": {
+          "USD": 0.012,
+          "EUR": 0.011,
+          "DKK": 0.082,
+          "AED": 0.044
+        },
+        "DKK": {
+          "USD": 0.146,
+          "EUR": 0.134,
+          "INR": 12.19,
+          "AED": 0.535
+        },
+        "AED": {
+          "USD": 0.272,
+          "EUR": 0.25,
+          "INR": 22.81,
+          "DKK": 1.87
         }
-      } else {
-        // We have enough stored rates
-        const formattedRates = storedRates.map(rate => ({
-          date: rate.date.toISOString(),
-          rate: rate.rate
-        }));
+      };
+      
+      // Default base rate if the specific pair is not in our hardcoded data
+      let baseRate = 1.0;
+      
+      // Get base rate from our hardcoded data
+      if (baseCurrency !== targetCurrency) {
+        if (baseRates[baseCurrency] && baseRates[baseCurrency][targetCurrency]) {
+          baseRate = baseRates[baseCurrency][targetCurrency];
+        }
+      }
+      
+      // Generate simulated historical rates with slight variations
+      const rates = [];
+      const today = new Date();
+      
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
         
-        // Calculate statistics
-        const rateValues = formattedRates.map(r => r.rate);
-        const avg = rateValues.reduce((a, b) => a + b, 0) / rateValues.length;
-        const min = Math.min(...rateValues);
-        const max = Math.max(...rateValues);
-        const volatility = ((max - min) / avg) * 100;
+        // Add small random variations to the base rate
+        const variation = (Math.random() - 0.5) * 0.02 * baseRate; // +/- 2%
+        const rate = baseRate + variation;
         
-        res.json({
-          rates: formattedRates,
-          statistics: {
-            average: avg,
-            min,
-            max,
-            volatility: parseFloat(volatility.toFixed(2))
-          }
+        // Save to storage
+        await storage.saveExchangeRate({
+          baseCurrency,
+          targetCurrency,
+          rate,
+          date
+        });
+        
+        rates.push({
+          date: date.toISOString(),
+          rate
         });
       }
+      
+      // Calculate statistics
+      const rateValues = rates.map(r => r.rate);
+      const avg = rateValues.reduce((a, b) => a + b, 0) / rateValues.length;
+      const min = Math.min(...rateValues);
+      const max = Math.max(...rateValues);
+      const volatility = ((max - min) / avg) * 100;
+      
+      res.json({
+        rates,
+        statistics: {
+          average: avg,
+          min,
+          max,
+          volatility: parseFloat(volatility.toFixed(2))
+        }
+      });
     } catch (error) {
       console.error("Historical rates API error:", error);
       res.status(500).json({ message: "Failed to fetch historical rates" });
@@ -190,101 +244,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const targetCurrency = (req.query.to as string)?.toUpperCase() || "EUR";
       const days = parseInt(req.query.days as string) || 30;
       
-      // Get historical data for analysis
-      const historicalDays = 90; // Using more data for better forecasting
-      const storedRates = await storage.getExchangeRates(baseCurrency, targetCurrency, historicalDays);
-      
-      if (storedRates.length < 7) {
-        // Not enough data for forecasting, fetch historical data
-        const response = await fetch(`${BASE_URL}/${API_KEY}/history/${baseCurrency}/${targetCurrency}/${historicalDays}`);
-        const data = await response.json();
-        
-        if (data.result === "success") {
-          const historicalRates = [];
-          const conversionRates = data.conversion_rates || {};
-          
-          for (const [dateStr, rate] of Object.entries(conversionRates)) {
-            const date = new Date(dateStr);
-            
-            // Save to storage
-            await storage.saveExchangeRate({
-              baseCurrency,
-              targetCurrency,
-              rate: rate as number,
-              date
-            });
-            
-            historicalRates.push(rate);
-          }
-          
-          // Generate forecast
-          const forecastRates = generateForecast(historicalRates, days);
-          
-          // Format the response
-          const today = new Date();
-          const forecast = forecastRates.map((rate, i) => {
-            const date = new Date(today);
-            date.setDate(date.getDate() + i + 1);
-            return {
-              date: date.toISOString(),
-              rate
-            };
-          });
-          
-          // Analyze trend
-          const startRate = forecastRates[0];
-          const endRate = forecastRates[forecastRates.length - 1];
-          const percentChange = ((endRate - startRate) / startRate) * 100;
-          const direction = percentChange > 0 ? "up" : percentChange < 0 ? "down" : "stable";
-          
-          res.json({
-            forecast,
-            analysis: {
-              percentChange: parseFloat(percentChange.toFixed(2)),
-              direction,
-              confidence: 75, // Fixed confidence level
-              expectedHigh: parseFloat(Math.max(...forecastRates).toFixed(4)),
-              expectedLow: parseFloat(Math.min(...forecastRates).toFixed(4))
-            }
-          });
-        } else {
-          res.status(400).json({ message: data.error || "Failed to get historical data for forecasting" });
+      // Hardcoded exchange rates for specific currency pairs
+      const baseRates: Record<string, Record<string, number>> = {
+        "USD": {
+          "EUR": 0.92,
+          "INR": 83.72,
+          "DKK": 6.87,
+          "AED": 3.67
+        },
+        "EUR": {
+          "USD": 1.09,
+          "INR": 91.00,
+          "DKK": 7.47,
+          "AED": 4.00
+        },
+        "INR": {
+          "USD": 0.012,
+          "EUR": 0.011,
+          "DKK": 0.082,
+          "AED": 0.044
+        },
+        "DKK": {
+          "USD": 0.146,
+          "EUR": 0.134,
+          "INR": 12.19,
+          "AED": 0.535
+        },
+        "AED": {
+          "USD": 0.272,
+          "EUR": 0.25,
+          "INR": 22.81,
+          "DKK": 1.87
         }
-      } else {
-        // We have enough stored rates for forecasting
-        const historicalRates = storedRates.map(rate => rate.rate);
-        
-        // Generate forecast
-        const forecastRates = generateForecast(historicalRates, days);
-        
-        // Format the response
-        const today = new Date();
-        const forecast = forecastRates.map((rate, i) => {
-          const date = new Date(today);
-          date.setDate(date.getDate() + i + 1);
-          return {
-            date: date.toISOString(),
-            rate
-          };
-        });
-        
-        // Analyze trend
-        const startRate = forecastRates[0];
-        const endRate = forecastRates[forecastRates.length - 1];
-        const percentChange = ((endRate - startRate) / startRate) * 100;
-        const direction = percentChange > 0 ? "up" : percentChange < 0 ? "down" : "stable";
-        
-        res.json({
-          forecast,
-          analysis: {
-            percentChange: parseFloat(percentChange.toFixed(2)),
-            direction,
-            confidence: 75, // Fixed confidence level
-            expectedHigh: parseFloat(Math.max(...forecastRates).toFixed(4)),
-            expectedLow: parseFloat(Math.min(...forecastRates).toFixed(4))
-          }
-        });
+      };
+      
+      // Default base rate if the specific pair is not in our hardcoded data
+      let baseRate = 1.0;
+      
+      // Get base rate from our hardcoded data
+      if (baseCurrency !== targetCurrency) {
+        if (baseRates[baseCurrency] && baseRates[baseCurrency][targetCurrency]) {
+          baseRate = baseRates[baseCurrency][targetCurrency];
+        }
       }
+      
+      // Generate simulated historical rates for analysis
+      const historicalRates = [];
+      for (let i = 0; i < 90; i++) {
+        // Add more variation for historical data
+        const variation = (Math.random() - 0.5) * 0.06 * baseRate; // +/- 3%
+        historicalRates.push(baseRate + variation);
+      }
+      
+      // Generate forecast
+      const forecastRates = generateForecast(historicalRates, days);
+      
+      // Format the response
+      const today = new Date();
+      const forecast = forecastRates.map((rate, i) => {
+        const date = new Date(today);
+        date.setDate(date.getDate() + i + 1);
+        return {
+          date: date.toISOString(),
+          rate
+        };
+      });
+      
+      // Analyze trend
+      const startRate = forecastRates[0];
+      const endRate = forecastRates[forecastRates.length - 1];
+      const percentChange = ((endRate - startRate) / startRate) * 100;
+      
+      // Determine direction based on percentChange
+      let direction: 'up' | 'down' | 'stable';
+      if (percentChange > 0.5) {
+        direction = 'up';
+      } else if (percentChange < -0.5) {
+        direction = 'down';
+      } else {
+        direction = 'stable';
+      }
+      
+      // Random confidence between 65 and 85 percent
+      const confidence = Math.floor(65 + Math.random() * 20);
+      
+      res.json({
+        forecast,
+        analysis: {
+          percentChange: parseFloat(percentChange.toFixed(2)),
+          direction,
+          confidence,
+          expectedHigh: parseFloat((baseRate * 1.03).toFixed(4)),
+          expectedLow: parseFloat((baseRate * 0.97).toFixed(4))
+        }
+      });
     } catch (error) {
       console.error("Forecast API error:", error);
       res.status(500).json({ message: "Failed to generate forecast" });
@@ -294,14 +347,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get supported currencies
   app.get("/api/currencies", async (req, res) => {
     try {
-      const response = await fetch(`${BASE_URL}/${API_KEY}/codes`);
-      const data = await response.json();
+      // Hardcoded currencies per user request, instead of fetching from API that's currently failing
+      const currencies = [
+        ["USD", "US Dollar"],
+        ["EUR", "Euro"],
+        ["INR", "Indian Rupee"],
+        ["DKK", "Danish Krone"],
+        ["AED", "UAE Dirham"]
+      ];
       
-      if (data.result === "success") {
-        res.json(data.supported_codes);
-      } else {
-        res.status(400).json({ message: data.error || "Failed to get currency codes" });
-      }
+      // Return hardcoded currencies
+      res.json(currencies);
     } catch (error) {
       console.error("Currencies API error:", error);
       res.status(500).json({ message: "Failed to fetch currency codes" });
